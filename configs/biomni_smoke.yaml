@@ -1,0 +1,24 @@
+# Biomni smoke test — three tasks, one framework, one model.
+# Requires: uv sync --extra biomni (or: make setup-biomni)
+# First run downloads ~11 GB of tools into BIOMNI_DATA_PATH (default: ./data)
+tasks:
+  - literature_search
+  - gene_annotation
+  - molecule_property
+
+frameworks:
+  - biomni
+
+models:
+  - llama3              # local Ollama — no key needed, run: ollama pull llama3
+  # - llama-3.3-70b    # free tier cloud — console.groq.com → GROQ_API_KEY
+
+eval:
+  - success_rate
+
+# Biomni kwargs (forwarded to runner.run())
+use_tool_retriever: true
+timeout_seconds: 300
+commercial_mode: false
+
+output_dir: results/biomni_smoke

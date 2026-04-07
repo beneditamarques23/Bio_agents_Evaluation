@@ -1,0 +1,80 @@
+[project]
+name = "bio-agents-playground"
+version = "0.1.0"
+description = "A playground for benchmarking bio-agent frameworks across models and tasks"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "pyyaml>=6.0",
+    "typer>=0.12",
+    "rich>=13.0",
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+# --- Frameworks ---
+langchain    = ["langchain>=0.3", "langchain-community>=0.3", "langchain-core>=0.3"]
+langgraph    = ["langgraph>=0.2", "langchain-core>=0.3"]
+anthropic-sdk = ["anthropic>=0.40"]
+crewai       = ["crewai>=0.80"]
+autogen      = ["pyautogen>=0.2"]
+smolagents   = ["smolagents>=1.0"]
+
+# --- Model providers ---
+openai    = ["openai>=1.0"]
+anthropic = ["anthropic>=0.40"]
+gemini    = ["google-generativeai>=0.8"]
+groq      = ["groq>=0.9"]
+local     = ["ollama>=0.3"]
+
+# --- Robin (Future-House multi-agent drug discovery pipeline) ---
+robin = [
+    "coredis>=4.0",
+    "robin @ git+https://github.com/Future-House/robin.git",
+]
+
+# --- Biomni (Stanford snap-stanford general-purpose bio agent) ---
+biomni = [
+    "biomni>=0.0.8",
+    "langchain-openai>=0.2",
+    "langchain-ollama>=0.2",
+    "datasets>=2.0",
+    "PyPDF2>=3.0",
+    "scikit-learn>=1.3",
+    "beautifulsoup4>=4.12",
+    "googlesearch-python>=1.2",
+]
+
+# --- Dev ---
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.4",
+    "pre-commit>=3.7",
+    "jupyter>=1.0",
+    "ipykernel>=6.0",
+    "mypy>=1.8",
+    "pyright>=1.1",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bio_agents"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

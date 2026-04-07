@@ -1,0 +1,24 @@
+# Robin smoke test — one disease, one framework, one model.
+# Requires: FUTUREHOUSE_API_KEY in .env + uv sync --extra robin
+tasks:
+  - assay_generation
+
+frameworks:
+  - robin
+
+models:
+  - llama3             # local Ollama — no key needed, run: ollama pull llama3
+  # - gemini-2.0-flash   # free tier — aistudio.google.com → GOOGLE_API_KEY
+  # - llama-3.3-70b    # free tier — console.groq.com    → GROQ_API_KEY
+  # - o4-mini          # paid — OPENAI_API_KEY
+  # - claude-sonnet-4-6  # paid — ANTHROPIC_API_KEY
+
+eval:
+  - success_rate
+
+# configs/robin_smoke.yaml  — add these to keep it short
+num_queries: 1
+num_assays: 2
+num_candidates: 2
+
+output_dir: results/robin_smoke

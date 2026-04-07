@@ -1,0 +1,31 @@
+# Full benchmark: all tasks × all frameworks × all models.
+tasks:
+  - literature_search
+  - sequence_analysis
+  - molecule_generation
+  - clinical_nlp
+  - genomics
+
+frameworks:
+  - langchain
+  - langgraph
+  - anthropic_sdk
+  - crewai
+  - autogen
+  - smolagents
+
+models:
+  - claude-opus-4-6
+  - claude-sonnet-4-6
+  - claude-haiku-4-5
+  - gpt-4o
+  - gpt-4o-mini
+  - gemini-2.0-flash
+  - llama3
+
+eval:
+  - success_rate
+  - tool_accuracy
+  - cost_latency
+
+output_dir: results/full_benchmark

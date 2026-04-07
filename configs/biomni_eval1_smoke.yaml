@@ -1,0 +1,25 @@
+# Biomni-Eval1 smoke test — 3 task types × 1 instance = 3 runs per framework/model.
+# Requires: uv sync --extra biomni (or: make setup-biomni)
+# Dataset: https://huggingface.co/datasets/biomni/Eval1
+
+task_names:
+  - gwas_causal_gene_opentargets
+  - lab_bench_seqqa
+  - rare_disease_diagnosis
+
+instances_per_task: 1
+
+frameworks:
+  - biomni
+
+models:
+  # - llama3           # local Ollama — no key needed, run: ollama pull llama3
+  - qwen3              # local Ollama — no key needed, run: ollama pull qwen3
+  # - llama-3.3-70b    # free tier cloud — console.groq.com → GROQ_API_KEY
+
+# Biomni kwargs (forwarded to runner.run())
+use_tool_retriever: true
+timeout_seconds: 300
+commercial_mode: false
+
+output_dir: results/biomni_eval1_smoke

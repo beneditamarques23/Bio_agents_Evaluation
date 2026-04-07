@@ -1,0 +1,58 @@
+# Pre-commit configuration
+# Install (run once after cloning):
+#   uv run pre-commit install                       # pre-commit stage
+#   uv run pre-commit install --hook-type commit-msg  # commit-msg stage (conventional commits)
+# Run all manually:
+#   uv run pre-commit run --all-files
+
+repos:
+  # nbstripout must run FIRST — strips notebook outputs before any file-size
+  # or JSON checks run, preventing false positives on large output cells.
+  - repo: https://github.com/kynan/nbstripout
+    rev: 0.9.1
+    hooks:
+      - id: nbstripout
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-toml
+      - id: check-json
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]
+      - id: check-merge-conflict
+      - id: detect-private-key
+
+  # Ruff linting and formatting (fast!)
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  # Conventional commits (commit-msg stage — requires separate install):
+  #   uv run pre-commit install --hook-type commit-msg
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.6.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args:
+          [
+            feat,
+            fix,
+            docs,
+            style,
+            refactor,
+            perf,
+            test,
+            build,
+            ci,
+            chore,
+            revert,
+          ]

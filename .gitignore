@@ -1,0 +1,42 @@
+# IDE and Editor Configurations
+.vscode/
+.idea/
+
+# Python-specific Files and Directories
+*.pyc
+__pycache__/
+.pytest_cache/
+*.whl
+.ruff_cache
+.mypy_cache/
+.venv/
+
+# uv
+uv.lock
+
+# Project Artifacts
+dist/
+bkp/
+logs/
+data/
+
+# Backup and Temporary Files
+*.bk
+*.log
+
+# Operating System Files
+.DS_Store
+
+# Notebook Specific
+.ipynb_checkpoints/
+
+# Environment & secrets
+.env
+
+# Benchmark results (keep .gitkeep, ignore actual outputs)
+results/*
+!results/.gitkeep
+
+# Notebook artifacts (generated when notebooks run with wrong cwd)
+notebooks/results/
+notebooks/data/

@@ -1,0 +1,23 @@
+# Biomni-Eval1 full benchmark — all 10 task types, all instances (433 runs).
+# WARNING: This is expensive and slow. Each instance requires a full Biomni agent run.
+# Requires: uv sync --extra biomni (or: make setup-biomni)
+# Dataset: https://huggingface.co/datasets/biomni/Eval1
+
+task_names:
+  - all   # expands to all 10 task types
+
+instances_per_task: 999   # effectively "all" — capped at available instances per task
+
+frameworks:
+  - biomni
+
+models:
+  - llama3              # local Ollama — no key needed, run: ollama pull llama3
+  # - llama-3.3-70b    # free tier cloud — console.groq.com → GROQ_API_KEY
+
+# Biomni kwargs (forwarded to runner.run())
+use_tool_retriever: true
+timeout_seconds: 600
+commercial_mode: false
+
+output_dir: results/biomni_eval1_full

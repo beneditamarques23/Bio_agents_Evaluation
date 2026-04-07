@@ -1,0 +1,18 @@
+# Quick smoke test: one task, two frameworks, two models.
+# Use this to verify a new setup works end-to-end before a full run.
+tasks:
+  - literature_search
+
+frameworks:
+  - anthropic_sdk
+  - langchain
+
+models:
+  - claude-sonnet-4-6
+  - gpt-4o
+
+eval:
+  - success_rate
+  - cost_latency
+
+output_dir: results/quick_smoke
