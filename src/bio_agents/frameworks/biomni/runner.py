@@ -59,12 +59,18 @@ class BiomniRunner(AgentRunner):
 
         # langchain_openai (used internally by Biomni) appends /chat/completions to
         # base_url, so Ollama's OpenAI-compatible endpoint must include the /v1 prefix.
-        ollama_base_url = f"{settings.ollama_base_url.rstrip('/')}/v1"
+        # ollama_cloud models (:<size>-cloud tags) are routed to Ollama's remote GPU
+        # infrastructure by the local Ollama daemon — same base_url as local.
+        # Requires: `ollama serve` + `ollama signin`
+        if provider in ("local", "ollama_cloud"):
+            base_url: str | None = f"{settings.ollama_base_url.rstrip('/')}/v1"
+        else:
+            base_url = None
 
         agent = A1(
             path=settings.biomni_data_path,
             llm=model_id,
-            base_url=ollama_base_url if provider == "local" else None,
+            base_url=base_url,
             api_key=_get_api_key(provider),
             use_tool_retriever=kwargs.get("use_tool_retriever", True),
             timeout_seconds=kwargs.get("timeout_seconds", 600),

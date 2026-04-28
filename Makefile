@@ -38,6 +38,11 @@ notebooks:
 clean:
 	@echo "Removing notebook artifacts..."
 	rm -rf notebooks/results notebooks/data notebooks/.ipynb_checkpoints
+	@echo "Removing framework runtime outputs..."
+	rm -rf robin_output/
+	@echo "Removing tool caches..."
+	rm -rf .mypy_cache .ruff_cache .pytest_cache .pyright
+	find . -type d -name '__pycache__' -exec rm -rf {} + 2>/dev/null || true
 	@echo "Done."
 
 pre-commit:

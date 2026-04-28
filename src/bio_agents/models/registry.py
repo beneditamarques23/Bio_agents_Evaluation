@@ -64,6 +64,57 @@ REGISTRY: dict[str, dict] = {
         "model_id": "qwen3",
         "litellm_id": "ollama_chat/qwen3",
     },
+    # Ollama Cloud — remote GPU inference via ollama.com
+    # Routed through the local Ollama daemon; the :<size>-cloud tag tells the
+    # daemon to offload to Ollama's cloud infrastructure instead of local GPU.
+    # Requirements: `ollama serve` + `ollama signin` (one-time CLI login).
+    # Full model list: https://ollama.com/search?c=cloud
+    # Tags below are verified from individual library pages (April 2026).
+    "ministral-3b-cloud": {
+        "provider": "ollama_cloud",
+        "model_id": "ministral-3:3b-cloud",
+        "litellm_id": "ollama_chat/ministral-3:3b-cloud",
+    },
+    "ministral-8b-cloud": {
+        "provider": "ollama_cloud",
+        "model_id": "ministral-3:8b-cloud",
+        "litellm_id": "ollama_chat/ministral-3:8b-cloud",
+    },
+    "ministral-14b-cloud": {
+        "provider": "ollama_cloud",
+        "model_id": "ministral-3:14b-cloud",
+        "litellm_id": "ollama_chat/ministral-3:14b-cloud",
+    },
+    "gemma4-cloud": {
+        "provider": "ollama_cloud",
+        "model_id": "gemma4:31b-cloud",
+        "litellm_id": "ollama_chat/gemma4:31b-cloud",
+    },
+    "deepseek-v4-flash-cloud": {
+        "provider": "ollama_cloud",
+        "model_id": "deepseek-v4-flash:cloud",
+        "litellm_id": "ollama_chat/deepseek-v4-flash:cloud",
+    },
+    "qwen3.5-cloud": {
+        "provider": "ollama_cloud",
+        "model_id": "qwen3.5:cloud",
+        "litellm_id": "ollama_chat/qwen3.5:cloud",
+    },
+    "kimi-k2.6-cloud": {
+        "provider": "ollama_cloud",
+        "model_id": "kimi-k2.6:cloud",
+        "litellm_id": "ollama_chat/kimi-k2.6:cloud",
+    },
+    "glm-4.6-cloud": {
+        "provider": "ollama_cloud",
+        "model_id": "glm-4.6:cloud",
+        "litellm_id": "ollama_chat/glm-4.6:cloud",
+    },
+    "deepseek-v3.1-671b-cloud": {
+        "provider": "ollama_cloud",
+        "model_id": "deepseek-v3.1:671b-cloud",
+        "litellm_id": "ollama_chat/deepseek-v3.1:671b-cloud",
+    },
 }
 
 

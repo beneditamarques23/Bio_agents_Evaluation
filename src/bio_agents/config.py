@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     # Local (Ollama)
     ollama_base_url: str = "http://localhost:11434"
 
+    # Ollama Cloud — remote GPU inference via ollama.com
+    # API key: ollama.com/settings/keys  |  models: ollama.com/search?c=cloud
+    ollama_api_key: str = ""
+    ollama_cloud_base_url: str = "https://ollama.com"
+
     # Biomni (Stanford snap-stanford general-purpose bio agent)
     # Shared project-level data directory — ~11 GB downloaded on first agent run
     biomni_data_path: str = "./data"

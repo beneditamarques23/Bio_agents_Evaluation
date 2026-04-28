@@ -12,6 +12,7 @@ A playground for benchmarking **bio-agent frameworks** across models, tasks, and
 - [Make Targets](#make-targets)
 - [Results Format](#results-format)
 - [Adding a Local Model (Ollama)](#adding-a-local-model-ollama)
+- [Adding an Ollama Cloud Model](#adding-an-ollama-cloud-model)
 - [Adding a Framework](#adding-a-framework)
 - [Adding a Task](#adding-a-task)
 - [Contributing](#contributing)
@@ -31,11 +32,15 @@ Results are saved as JSONL for downstream analysis in notebooks.
 **Supported frameworks:**
 `robin` · `biomni`
 
+> **Robin** uses FutureHouse agents (Phoenix/Crow/Falcon) for literature search and any registered LLM for its reasoning steps (candidate generation, ranking). Requires `FUTUREHOUSE_API_KEY` but is otherwise model-agnostic: Anthropic, OpenAI, Google, Groq, local Ollama, and Ollama Cloud all work as the reasoning LLM. Pass `lite_mode=True` to replace FutureHouse calls with PubMed + local LLM — no `FUTUREHOUSE_API_KEY` needed.
+>
+> **Biomni** is fully model-agnostic — any registered provider works end-to-end.
+
 **Planned frameworks:**
 `langchain` · `langgraph` · `anthropic_sdk` · `crewai` · `autogen` · `smolagents`
 
 **Supported model providers:**
-`anthropic` · `openai` · `google` · `groq` · `local (ollama)`
+`anthropic` · `openai` · `google` · `groq` · `local (ollama)` · `ollama cloud`
 
 **Bio task domains:**
 `drug_discovery` · `literature_search` · `gene_annotation` · `molecule_property` · `sequence_analysis` · `clinical_nlp` · `genomics`
@@ -64,11 +69,13 @@ bio-agents-playground/
 ├── pipelines/           # CLI entrypoints
 │   ├── run_task.py      # single task runner
 │   ├── run_benchmark.py # full matrix runner
-│   └── run_eval1.py     # Biomni-Eval1 dataset runner
+│   ├── run_eval1.py     # Biomni-Eval1 dataset runner
+│   └── score_outputs.py # score external outputs against Biomni-Eval1
 ├── notebooks/           # Interactive Jupyter notebooks (mirror the pipelines)
 │   ├── 01_run_task.ipynb
 │   ├── 02_run_benchmark.ipynb
-│   └── 03_run_eval1.ipynb
+│   ├── 03_run_eval1.ipynb
+│   └── 04_score_external_outputs.ipynb
 ├── results/             # Benchmark outputs (JSONL)
 └── tests/
 ```
@@ -108,6 +115,7 @@ cp .env.example .env
 | Groq | `GROQ_API_KEY` | Yes — [console.groq.com](https://console.groq.com) |
 | Edison Scientific (FutureHouse) | `FUTUREHOUSE_API_KEY` | [platform.edisonscientific.com](https://platform.edisonscientific.com) |
 | Local (Ollama) | — | Free — `ollama pull llama3` or `ollama pull qwen3` |
+| Ollama Cloud | — | Free tier — `ollama signin` (no API key needed in `.env`) |
 
 ---
 
@@ -116,24 +124,32 @@ cp .env.example .env
 ### Run a single task interactively
 
 ```bash
-# Robin — drug discovery pipeline
+# Robin — drug discovery pipeline (standard: requires FUTUREHOUSE_API_KEY)
 uv run python pipelines/run_task.py assay_generation \
-  --framework robin \
-  --model llama3
+  --framework robin --model llama3
+
+# Robin — lite mode (no FUTUREHOUSE_API_KEY needed; uses PubMed + local LLM)
+uv run python pipelines/run_task.py assay_generation \
+  --framework robin --model llama3 \
+  --kwarg lite_mode=true --kwarg num_assays=2
 
 # Biomni — general-purpose bio agent
 uv run python pipelines/run_task.py literature_search \
-  --framework biomni \
-  --model llama3
+  --framework biomni --model llama3
+
+# Pass any framework-specific kwarg with --kwarg KEY=VALUE (repeatable, auto-cast)
+uv run python pipelines/run_task.py literature_search \
+  --framework biomni --model llama3 \
+  --kwarg use_tool_retriever=true --kwarg timeout_seconds=300
 ```
 
 ### Run a benchmark matrix
 
 ```bash
-# Robin smoke test (requires FUTUREHOUSE_API_KEY + Ollama)
+# Robin smoke test (requires FUTUREHOUSE_API_KEY + at least one model provider)
 uv run python pipelines/run_benchmark.py --config configs/robin_smoke.yaml
 
-# Biomni smoke test (requires Ollama or GROQ_API_KEY)
+# Biomni smoke test (requires at least one model provider)
 uv run python pipelines/run_benchmark.py --config configs/biomni_smoke.yaml
 
 # Dry-run to preview the matrix
@@ -154,14 +170,21 @@ tasks:
 frameworks:
   - robin
 models:
-  - llama3          # local Ollama — no key needed
-  # - llama-3.3-70b # free tier — GROQ_API_KEY
+  - llama3               # local Ollama — no key needed, run: ollama pull llama3
+  # - ministral-8b-cloud # Ollama Cloud free tier — ollama signin
+  # - gemini-2.0-flash   # Google free tier — GOOGLE_API_KEY
+  # - llama-3.3-70b      # Groq free tier — GROQ_API_KEY
+  # - o4-mini            # OpenAI — OPENAI_API_KEY
+  # - claude-sonnet-4-6  # Anthropic — ANTHROPIC_API_KEY
 eval:
   - success_rate
 # Robin-specific kwargs
 num_queries: 1
 num_assays: 2
 num_candidates: 2
+# Lite mode: replaces FutureHouse API calls with PubMed + local LLM.
+# Set to true to run without a FUTUREHOUSE_API_KEY.
+lite_mode: false
 output_dir: results/robin_smoke
 ```
 
@@ -219,6 +242,79 @@ models:
 output_dir: results/biomni_eval1_smoke
 ```
 
+### Score external outputs against Biomni-Eval1
+
+Use `score_outputs.py` (or `StandaloneEval1Scorer` directly) to score agent
+outputs collected **outside** bio-agents-playground — from another tool, a
+third-party API, or a manual run — with the same exact-match evaluator.
+
+Each record needs three fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `task_name` | str | One of the 10 Biomni-Eval1 task types |
+| `task_instance_id` | int | Row ID within that task type in `biomni/Eval1` |
+| `output` | str | The agent's free-text response |
+
+Extra fields (`framework`, `model`, `run_id`, …) are preserved untouched in the output.
+
+```bash
+# Score a JSONL file
+uv run python pipelines/score_outputs.py \
+    --input path/to/external_outputs.jsonl \
+    --output results/my_scored_run
+
+# Score a CSV file
+uv run python pipelines/score_outputs.py \
+    --input path/to/external_outputs.csv \
+    --output results/my_scored_run
+
+# Dry-run: preview records without scoring
+uv run python pipelines/score_outputs.py \
+    --input path/to/external_outputs.jsonl \
+    --dry-run
+```
+
+Input JSONL format:
+```jsonl
+{"task_name": "gwas_causal_gene_opentargets", "task_instance_id": 767, "output": "The causal gene is HNF1A.", "model": "gpt-4o"}
+{"task_name": "lab_bench_seqqa", "task_instance_id": 12, "output": "The answer is B.", "model": "gpt-4o"}
+```
+
+Or use `StandaloneEval1Scorer` directly in a script or notebook:
+```python
+from bio_agents.evaluation import StandaloneEval1Scorer
+
+scorer = StandaloneEval1Scorer()
+
+# Score a single output
+result = scorer.score_one(
+    task_name="gwas_causal_gene_opentargets",
+    task_instance_id=767,
+    output="The causal gene is HNF1A.",
+    model="gpt-4o",   # extra fields are passed through
+)
+print(result["score"])   # 1.0
+
+# Score a batch and save
+results = scorer.score_from_jsonl("external_outputs.jsonl")
+scorer.save(results, output_dir="results/my_scored_run")
+print(scorer.summary(results))
+```
+
+Results are saved as `results.jsonl` in the same format as `BenchmarkRunner`
+and `Eval1Runner`, so you can merge and compare runs across sources:
+
+```python
+import pandas as pd
+
+df_internal = pd.read_json("results/biomni_eval1_smoke/results.jsonl", lines=True)
+df_external = pd.read_json("results/my_scored_run/results.jsonl", lines=True)
+
+df_all = pd.concat([df_internal, df_external], ignore_index=True)
+df_all.groupby(["framework", "model"])["score"].mean()
+```
+
 ### Notebook analysis
 
 Results are saved to `results/<run>/results.jsonl`. Load them in a notebook:
@@ -240,6 +336,7 @@ Three Jupyter notebooks in `notebooks/` mirror the CLI pipelines step-by-step, w
 | `01_run_task.ipynb` | `run_task.py` | Registry exploration, task inspection, single agent run, result breakdown |
 | `02_run_benchmark.ipynb` | `run_benchmark.py` | Config loading, matrix dry-run, benchmark run, pandas analysis, JSONL reload |
 | `03_run_eval1.ipynb` | `run_eval1.py` | Dataset preview, instance inspection, dry-run, per-task scoring, scaling up |
+| `04_score_external_outputs.ipynb` | `score_outputs.py` | Score outputs from external sources, file loaders, pandas analysis, cross-framework merge |
 
 To open them:
 ```bash
@@ -292,6 +389,20 @@ All runners write results to `results/<run_name>/results.jsonl` — one JSON obj
 | `eval1_task_name` | str | One of the 10 Biomni-Eval1 task types |
 | `task_instance_id` | int | Row ID in the `biomni/Eval1` HuggingFace dataset |
 
+**`StandaloneEval1Scorer` fields (`score_outputs.py`):**
+
+The scorer preserves all input fields and adds:
+
+| Field | Type | Description |
+|---|---|---|
+| `task_name` | str | One of the 10 Biomni-Eval1 task types (from input) |
+| `task_instance_id` | int | Row ID in `biomni/Eval1` (from input) |
+| `output` | str | Agent response being scored (from input) |
+| `score` | float | 0.0 or 1.0 exact-match score |
+| `passed` | bool | Whether score > 0 |
+| `metrics` | dict | `task_name`, `task_instance_id`, `output_length`; or `eval_error` on failure |
+| *(any extra)* | any | Extra input fields (e.g. `framework`, `model`, `run_id`) passed through untouched |
+
 ---
 
 ## Adding a Local Model (Ollama)
@@ -334,6 +445,58 @@ models:
 > ```bash
 > ollama serve
 > ```
+
+---
+
+## Adding an Ollama Cloud Model
+
+[Ollama Cloud](https://ollama.com/cloud) runs models on Ollama's own GPU infrastructure — **no local weights download or GPU required**. The local Ollama daemon routes any `:<size>-cloud` tag to Ollama's servers automatically. Browse all available cloud models at [ollama.com/search?c=cloud](https://ollama.com/search?c=cloud).
+
+### 1. Sign in to Ollama
+
+```bash
+ollama signin        # one-time login — authenticates the local daemon with your ollama.com account
+```
+
+### 2. Register it in the model registry
+
+Add an entry to `src/bio_agents/models/registry.py` using `provider: "ollama_cloud"` and the exact tag from the Ollama library (format: `<model>:<size>-cloud`):
+
+```python
+"gpt-oss-20b-cloud": {
+    "provider": "ollama_cloud",
+    "model_id": "gpt-oss:20b-cloud",
+    "litellm_id": "ollama_chat/gpt-oss:20b-cloud",
+},
+```
+
+Nine cloud models are pre-registered (tags verified against individual library pages, April 2026):
+
+| Registry key | Model tag | Size |
+|---|---|---|
+| `ministral-3b-cloud` | `ministral-3:3b-cloud` | 3 B |
+| `ministral-8b-cloud` | `ministral-3:8b-cloud` | 8 B |
+| `ministral-14b-cloud` | `ministral-3:14b-cloud` | 14 B |
+| `gemma4-cloud` | `gemma4:31b-cloud` | 31 B |
+| `deepseek-v4-flash-cloud` | `deepseek-v4-flash:cloud` | 13 B active (MoE) |
+| `qwen3.5-cloud` | `qwen3.5:cloud` | unspecified |
+| `kimi-k2.6-cloud` | `kimi-k2.6:cloud` | unspecified |
+| `glm-4.6-cloud` | `glm-4.6:cloud` | unspecified |
+| `deepseek-v3.1-671b-cloud` | `deepseek-v3.1:671b-cloud` | 671 B |
+
+### 3. Use it in a config or CLI
+
+```bash
+# CLI
+uv run python pipelines/run_task.py literature_search \
+  --framework biomni --model ministral-8b-cloud
+
+# YAML config
+models:
+  - ministral-8b-cloud
+```
+
+> **Requirements:** `ollama serve` must be running and you must be signed in (`ollama signin`). No `OLLAMA_API_KEY` is needed in `.env` — authentication is handled by the daemon session.
 
 ---
 
