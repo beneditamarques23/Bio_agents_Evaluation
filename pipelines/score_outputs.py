@@ -49,13 +49,13 @@ def _load_records(path: Path) -> list[dict]:
     records = []
 
     if suffix == ".jsonl":
-        with open(path) as f:
+        with open(path, encoding="utf-8-sig") as f:
             for line in f:
                 line = line.strip()
                 if line:
                     records.append(json.loads(line))
     elif suffix == ".csv":
-        with open(path, newline="") as f:
+        with open(path, newline="", encoding="utf-8-sig") as f:
             reader = csv.DictReader(f)
             for row in reader:
                 records.append(dict(row))
