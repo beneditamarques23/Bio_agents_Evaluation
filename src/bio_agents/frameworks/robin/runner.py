@@ -27,6 +27,8 @@ Lite mode (lite_mode=True)
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import re
 from pathlib import Path
 from typing import Any
 
@@ -83,7 +85,7 @@ class RobinRunner(AgentRunner):
         provider = REGISTRY[model]["provider"] if model in REGISTRY else "openai"
         llm_config = _build_llm_config(litellm_model, provider)
 
-        output_dir = Path("results") / "robin" / disease_name.lower().replace(" ", "_")
+        output_dir = Path("results") / "robin" / _safe_dir_name(disease_name)
 
         config = RobinConfiguration(
             disease_name=disease_name,
@@ -130,6 +132,8 @@ class RobinRunner(AgentRunner):
         if lite_mode:
             # Monkey-patch robin's call_platform in both pipeline modules with our
             # PubMed + local LLM replacement, then restore originals afterwards.
+            import json as _json_stdlib
+
             import robin.assays as _robin_assays  # type: ignore[import]
             import robin.candidates as _robin_cands  # type: ignore[import]
 
@@ -140,6 +144,19 @@ class RobinRunner(AgentRunner):
             lite_fn = make_lite_call_platform(config.llm_client)
             setattr(_robin_assays, "call_platform", lite_fn)
             setattr(_robin_cands, "call_platform", lite_fn)
+
+            # Also patch json.loads inside robin.assays so that an empty or
+            # non-JSON LLM response (e.g. when the model receives a nonsensical
+            # "disease name") returns a valid fallback rather than crashing with
+            # JSONDecodeError.  robin.candidates parses structured text blocks
+            # and already handles empty responses gracefully, so only assays
+            # needs this patch.
+            _orig_assays_json = getattr(_robin_assays, "json")
+            setattr(
+                _robin_assays,
+                "json",
+                _PatchedJson(_json_stdlib, _PatchedJson._ASSAY_FALLBACK),
+            )
             try:
                 candidate_goal, tool_calls = await _run_pipeline(
                     disease_name,
@@ -151,6 +168,7 @@ class RobinRunner(AgentRunner):
             finally:
                 setattr(_robin_assays, "call_platform", _orig_assays)
                 setattr(_robin_cands, "call_platform", _orig_cands)
+                setattr(_robin_assays, "json", _orig_assays_json)
         else:
             candidate_goal, tool_calls = await _run_pipeline(
                 disease_name,
@@ -183,23 +201,40 @@ async def _run_pipeline(
     tool_calls: list[dict[str, Any]] = []
 
     # Stage 1 — assay generation & ranking
-    candidate_goal: str | None = await experimental_assay(config)
+    # synthesize_candidate_goal (the final call inside experimental_assay) is a
+    # local closure and cannot be patched from outside.  Wrap the whole stage so
+    # transient API errors (e.g. 500 from Ollama cloud on the synthesis step)
+    # produce an empty fallback rather than aborting the run.
+    stage1_error: str = ""
+    try:
+        candidate_goal: str | None = await experimental_assay(config)
+    except Exception as exc:
+        candidate_goal = ""
+        stage1_error = repr(exc)
+
     tool_calls.append(
         {
             "name": "experimental_assay",
             "input": disease_name,
             "output": candidate_goal,
+            **({"error": stage1_error} if stage1_error else {}),
         }
     )
 
     # Stage 2 — therapeutic candidate generation & ranking
     goal_str: str = candidate_goal or ""
-    await therapeutic_candidates(goal_str, config)
+    stage2_error: str = ""
+    try:
+        await therapeutic_candidates(goal_str, config)
+    except Exception as exc:
+        stage2_error = repr(exc)
+
     tool_calls.append(
         {
             "name": "therapeutic_candidates",
             "input": goal_str,
             "output": str(output_dir / "ranked_therapeutic_candidates.csv"),
+            **({"error": stage2_error} if stage2_error else {}),
         }
     )
 
@@ -260,6 +295,70 @@ def _build_llm_config(litellm_model: str, provider: str) -> dict:
             }
         ]
     }
+
+
+def _safe_dir_name(text: str, max_len: int = 80) -> str:
+    """
+    Return a filesystem-safe, length-bounded directory slug for *text*.
+
+    Robin was designed for short disease names but can receive arbitrarily long
+    prompts. macOS/Linux enforce a 255-byte limit per path component; Windows
+    limits the full path to ~260 chars. We cap at 80 chars (readable) and
+    append an 8-char MD5 suffix for uniqueness when truncation occurs.
+    """
+    slug = text.lower()
+    slug = re.sub(r"[^a-z0-9]+", "_", slug)  # keep only alphanum + underscores
+    slug = slug.strip("_")
+    if len(slug) > max_len:
+        suffix = hashlib.md5(text.encode()).hexdigest()[:8]
+        slug = slug[: max_len - 9] + "_" + suffix
+    return slug or "unnamed"
+
+
+class _PatchedJson:
+    """
+    Drop-in replacement for the ``json`` module used inside ``robin.assays``.
+
+    When the LLM returns an empty (or non-JSON) response for the assay-proposal
+    step, ``json.loads`` would raise ``JSONDecodeError``.  Robin was designed for
+    disease names; when given arbitrary biology prompts the model may produce
+    empty content.  This wrapper catches those cases and returns a minimal valid
+    structure that ``format_assay_ideas`` can consume without crashing the
+    pipeline.
+
+    All other ``json`` attributes (``dumps``, ``JSONDecodeError``, …) are
+    transparently proxied to the real stdlib module.
+    """
+
+    _ASSAY_FALLBACK = [
+        {
+            "strategy_name": "N/A",
+            "reasoning": "Model returned no output for this prompt.",
+        }
+    ]
+    _CANDIDATE_FALLBACK = [
+        {
+            "candidate": "N/A",
+            "hypothesis": "N/A",
+            "reasoning": "Model returned no output for this prompt.",
+        }
+    ]
+
+    def __init__(self, real_json: Any, fallback: list[dict]) -> None:
+        self._real = real_json
+        self._fallback = fallback
+
+    def loads(self, s: Any, *args: Any, **kwargs: Any) -> Any:
+        text = s if s is not None else ""
+        if not str(text).strip():
+            return self._fallback
+        try:
+            return self._real.loads(text, *args, **kwargs)
+        except self._real.JSONDecodeError:
+            return self._fallback
+
+    def __getattr__(self, name: str) -> Any:  # proxy everything else
+        return getattr(self._real, name)
 
 
 def _require_dependencies(lite_mode: bool = False) -> None:

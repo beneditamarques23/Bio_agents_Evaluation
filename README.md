@@ -30,9 +30,11 @@ tasks × frameworks × models → evaluation metrics
 Results are saved as JSONL for downstream analysis in notebooks.
 
 **Supported frameworks:**
-`robin` · `biomni`
+`robin` · `robin-rag` · `biomni`
 
-> **Robin** uses FutureHouse agents (Phoenix/Crow/Falcon) for literature search and any registered LLM for its reasoning steps (candidate generation, ranking). Requires `FUTUREHOUSE_API_KEY` but is otherwise model-agnostic: Anthropic, OpenAI, Google, Groq, local Ollama, and Ollama Cloud all work as the reasoning LLM. Pass `lite_mode=True` to replace FutureHouse calls with PubMed + local LLM — no `FUTUREHOUSE_API_KEY` needed.
+> **Robin** runs the full FutureHouse drug-discovery pipeline (experimental assay generation + therapeutic candidate ranking). Uses FutureHouse agents (Phoenix/Crow/Falcon) for literature search and any registered LLM for reasoning. Requires `FUTUREHOUSE_API_KEY`; pass `lite_mode=True` to replace FutureHouse calls with PubMed + local LLM (no key needed).
+>
+> **Robin RAG** (`robin-rag`) uses Robin's PubMed infrastructure as a retrieval layer to answer arbitrary biology questions. Given any prompt it: (1) asks the LLM to extract a compact PubMed search query, (2) fetches relevant abstracts via NCBI E-utilities, (3) synthesises an answer grounded in the literature (falls back to LLM-only knowledge if PubMed returns nothing). No `FUTUREHOUSE_API_KEY` needed — any registered model works.
 >
 > **Biomni** is fully model-agnostic — any registered provider works end-to-end.
 
@@ -470,19 +472,24 @@ Add an entry to `src/bio_agents/models/registry.py` using `provider: "ollama_clo
 },
 ```
 
-Nine cloud models are pre-registered (tags verified against individual library pages, April 2026):
+Twelve cloud models are pre-registered (tags verified against individual library pages, May 2026):
 
-| Registry key | Model tag | Size |
+| Registry key | Model tag | Subscription tier |
 |---|---|---|
-| `ministral-3b-cloud` | `ministral-3:3b-cloud` | 3 B |
-| `ministral-8b-cloud` | `ministral-3:8b-cloud` | 8 B |
-| `ministral-14b-cloud` | `ministral-3:14b-cloud` | 14 B |
-| `gemma4-cloud` | `gemma4:31b-cloud` | 31 B |
-| `deepseek-v4-flash-cloud` | `deepseek-v4-flash:cloud` | 13 B active (MoE) |
-| `qwen3.5-cloud` | `qwen3.5:cloud` | unspecified |
-| `kimi-k2.6-cloud` | `kimi-k2.6:cloud` | unspecified |
-| `glm-4.6-cloud` | `glm-4.6:cloud` | unspecified |
-| `deepseek-v3.1-671b-cloud` | `deepseek-v3.1:671b-cloud` | 671 B |
+| `ministral-3b-cloud` | `ministral-3:3b-cloud` | Free |
+| `ministral-8b-cloud` | `ministral-3:8b-cloud` | Free |
+| `ministral-14b-cloud` | `ministral-3:14b-cloud` | Free |
+| `gemma34b-cloud` | `gemma3:4b-cloud` | Free |
+| `gemma312b-cloud` | `gemma3:12b-cloud` | Free |
+| `gemma327b-cloud` | `gemma3:27b-cloud` | Pro ($20/mo) |
+| `gemma431b-cloud` | `gemma4:31b-cloud` | Pro ($20/mo) |
+| `deepseek-v4-flash-cloud` | `deepseek-v4-flash:cloud` | Pro ($20/mo) |
+| `qwen3.5-cloud` | `qwen3.5:cloud` | Pro ($20/mo) |
+| `kimi-k2.6-cloud` | `kimi-k2.6:cloud` | Pro/Max ($100/mo) |
+| `glm-4.6-cloud` | `glm-4.6:cloud` | Pro/Max ($100/mo) |
+| `deepseek-v3.1-671b-cloud` | `deepseek-v3.1:671b-cloud` | Pro/Max ($100/mo) |
+
+See [ollama.com/pricing](https://ollama.com/pricing) for current tier details.
 
 ### 3. Use it in a config or CLI
 

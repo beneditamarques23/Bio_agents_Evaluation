@@ -40,3 +40,9 @@ results/*
 # Notebook artifacts (generated when notebooks run with wrong cwd)
 notebooks/results/
 notebooks/data/
+
+# Framework runtime outputs
+robin_output/
+
+# Pyright type-checker cache
+.pyright/
