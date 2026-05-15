@@ -91,7 +91,7 @@ class RobinRunner(AgentRunner):
             llm_config=llm_config,
             # Pass a non-empty placeholder so RobinConfiguration accepts the field;
             # in lite mode the real key is never used (call_platform is patched).
-            futurehouse_api_key=settings.futurehouse_api_key or "lite_mode",
+            futurehouse_api_key=settings.futurehouse_api_key or "lite_mode",  # type: ignore[call-arg]
             run_folder_name=str(output_dir),
             num_assays=kwargs.get("num_assays", 3),
             num_candidates=kwargs.get("num_candidates", 5),
@@ -104,16 +104,16 @@ class RobinRunner(AgentRunner):
             # without a key). Our patched call_platform ignores fh_client anyway.
             config._fh_client = object()  # type: ignore[assignment]
         else:
-            from futurehouse_client import (
-                FutureHouseClient,  # type: ignore[import]
-                JobNames,  # type: ignore[import]
+            from futurehouse_client import (  # type: ignore[import]
+                FutureHouseClient,
+                JobNames,
             )
 
             fh_client = FutureHouseClient(
                 api_key=settings.futurehouse_api_key,
                 service_uri=settings.futurehouse_api_url,
             )
-            config._fh_client = fh_client
+            config._fh_client = fh_client  # type: ignore[assignment]
 
             # Route all FutureHouse agent calls through Phoenix (the only job this
             # API key has access to). CROW and FALCON require a higher-tier key.
