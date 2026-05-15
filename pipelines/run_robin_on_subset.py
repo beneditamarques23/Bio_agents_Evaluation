@@ -17,14 +17,17 @@ Output:
 
 Current issue:
     Robin does not run successfully in the current local setup.
-    Even with lite_mode=True, execution may fail due to authentication or timeout issues depending on the installed Robin/FutureHouse/Edison dependencies.
+    Even with lite_mode=True, execution may fail due to authentication or timeout issues
+    depending on the installed Robin/FutureHouse/Edison dependencies.
 """
 
-from pathlib import Path
 import json
 import time
 import traceback
+from pathlib import Path
+
 import pandas as pd
+
 from bio_agents.frameworks import FRAMEWORK_REGISTRY
 from bio_agents.tasks.biomni_eval1.task import BiomniEval1Task
 
@@ -52,15 +55,15 @@ print("Input:", input_csv)
 print("Output:", output_csv)
 print("Rows:", len(df))
 
-for idx, row in df.iterrows():
-    print(f"\n========== Query {idx + 1}/{len(df)} ==========")
+for query_num, (_, row) in enumerate(df.iterrows(), 1):
+    print(f"\n========== Query {query_num}/{len(df)} ==========")
     print("Task:", row["task_name"])
     print("Instance:", row["task_instance_id"])
 
     task = BiomniEval1Task(
-        task_name=row["task_name"],
-        task_instance_id=row["task_instance_id"],
-        prompt=row["input_query"],
+        task_name=str(row["task_name"]),
+        task_instance_id=int(row["task_instance_id"]),  # type: ignore[arg-type]
+        prompt=str(row["input_query"]),
     )
 
     task_input = task.get_input()
