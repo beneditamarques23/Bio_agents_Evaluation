@@ -147,7 +147,7 @@ The CSV contains both a raw output column and a cleaned output column.
 
         Stores the full traceback if a query fails. If the query completes
         normally, this field is empty.
-        
+
 """
 
 from __future__ import annotations
@@ -164,7 +164,6 @@ import pandas as pd
 
 from bio_agents.frameworks import FRAMEWORK_REGISTRY
 from bio_agents.tasks.biomni_eval1.task import BiomniEval1Task
-
 
 FINAL_COLUMNS = [
     "sample_index",
@@ -265,7 +264,10 @@ def extract_final_answer(raw_output: str, task_name: str, input_query: str) -> s
     if valid_letters:
         patterns = [
             rf"\[ANSWER\]\s*([{valid_letters}])\s*\[/ANSWER\]",
-            rf"(?:answer|correct answer|option|method)\s*(?:is|:)?\s*\**([{valid_letters}])\**\b",
+            (
+                rf"(?:answer|correct answer|option|method)"
+                rf"\s*(?:is|:)?\s*\**([{valid_letters}])\**\b"
+            ),
             rf"\(([{valid_letters}])\)",
             rf"\*\*([{valid_letters}])\*\*",
             rf"\b([{valid_letters}])\b\s*$",
@@ -329,7 +331,7 @@ def validate_existing_csv_schema(output_csv: Path) -> None:
 
 
 def get_completed_sample_indices(output_csv: Path) -> set[str]:
-   #Return sample_index values that already exist in the output CSV.
+    # Return sample_index values that already exist in the output CSV.
 
     completed: set[str] = set()
 
@@ -377,9 +379,7 @@ df["sample_index"] = df["sample_index"].astype(str)
 
 completed_sample_indices = get_completed_sample_indices(output_csv)
 
-remaining_df = df[
-    ~df["sample_index"].isin(completed_sample_indices)
-].copy()
+remaining_df = df[~df["sample_index"].isin(list(completed_sample_indices))].copy()
 
 print(f"Running {framework} with model={model}")
 print("Input:", input_csv)
@@ -405,7 +405,7 @@ for count, (_, row) in enumerate(remaining_df.iterrows(), start=1):
 
     task = BiomniEval1Task(
         task_name=str(row["task_name"]),
-        task_instance_id=int(row["task_instance_id"]),
+        task_instance_id=int(str(row["task_instance_id"])),
         prompt=str(row["input_query"]),
     )
 

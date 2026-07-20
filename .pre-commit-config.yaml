@@ -18,7 +18,12 @@ repos:
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        # data_subset/*.csv stores raw multi-line model output inside quoted
+        # cells; line-oriented whitespace stripping would corrupt that
+        # preserved text.
+        exclude: ^data_subset/.*\.csv$
       - id: end-of-file-fixer
+        exclude: ^data_subset/.*\.csv$
       - id: check-yaml
       - id: check-toml
       - id: check-json

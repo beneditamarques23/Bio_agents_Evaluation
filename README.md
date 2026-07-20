@@ -45,7 +45,10 @@ Results are saved as JSONL for downstream analysis in notebooks.
 `anthropic` · `openai` · `google` · `groq` · `local (ollama)` · `ollama cloud`
 
 **Bio task domains:**
-`drug_discovery` · `literature_search` · `gene_annotation` · `molecule_property` · `sequence_analysis` · `clinical_nlp` · `genomics`
+`drug_discovery` · `literature_search` · `gene_annotation` · `molecule_property` · `genomics`
+
+**Planned task domains:**
+`sequence_analysis` · `clinical_nlp`
 
 ---
 
@@ -55,7 +58,7 @@ Results are saved as JSONL for downstream analysis in notebooks.
 bio-agents-playground/
 ├── src/bio_agents/
 │   ├── frameworks/      # AgentRunner adapters (one per framework)
-│   │   ├── robin/       # FutureHouse/Edison Scientific Robin pipeline
+│   │   ├── robin/       # FutureHouse/Edison Scientific Robin pipeline (+ Robin-RAG, lite mode)
 │   │   └── biomni/      # Stanford Biomni general-purpose bio agent
 │   ├── models/          # Model registry & provider info
 │   ├── tasks/           # BioTask definitions (input, tools, eval)
@@ -64,20 +67,24 @@ bio-agents-playground/
 │   │   ├── genomics/        # gene_annotation
 │   │   ├── molecule/        # molecule_property
 │   │   └── biomni_eval1/    # BiomniEval1Task (parametric, dataset-driven)
-│   ├── tools/           # Bio API wrappers (PubMed, BLAST, UniProt, FutureHouse, …)
-│   ├── evaluation/      # BenchmarkRunner + metrics
+│   ├── tools/           # Bio API wrappers (PubMed, FutureHouse)
+│   ├── evaluation/      # BenchmarkRunner + StandaloneEval1Scorer
 │   └── config.py        # Settings (API keys via .env)
 ├── configs/             # YAML benchmark configs
 ├── pipelines/           # CLI entrypoints
-│   ├── run_task.py      # single task runner
-│   ├── run_benchmark.py # full matrix runner
-│   ├── run_eval1.py     # Biomni-Eval1 dataset runner
-│   └── score_outputs.py # score external outputs against Biomni-Eval1
+│   ├── run_task.py             # single task runner
+│   ├── run_benchmark.py        # full matrix runner
+│   ├── run_eval1.py            # Biomni-Eval1 dataset runner
+│   ├── score_outputs.py        # score external outputs against Biomni-Eval1
+│   ├── run_biomni_on_subset.py # one-off: Biomni vs. the fixed data_subset/ sample
+│   └── run_robin_on_subset.py  # one-off: Robin-RAG vs. the fixed data_subset/ sample
 ├── notebooks/           # Interactive Jupyter notebooks (mirror the pipelines)
 │   ├── 01_run_task.ipynb
 │   ├── 02_run_benchmark.ipynb
 │   ├── 03_run_eval1.ipynb
 │   └── 04_score_external_outputs.ipynb
+├── data_subset/         # Fixed 30-instance Eval1 sample + per-framework/tool outputs
+│                        # (see "Comparing frameworks on a fixed subset" below)
 ├── results/             # Benchmark outputs (JSONL)
 └── tests/
 ```
@@ -317,6 +324,25 @@ df_all = pd.concat([df_internal, df_external], ignore_index=True)
 df_all.groupby(["framework", "model"])["score"].mean()
 ```
 
+### Comparing frameworks on a fixed subset (`data_subset/`)
+
+`data_subset/` holds a fixed 30-instance sample of Biomni-Eval1
+(`data_subset/create_eval1_subset.ipynb` → `project_subset.csv`, seeded for
+reproducibility) used to compare this project's frameworks against outputs
+collected from other tools on the exact same inputs:
+
+- `pipelines/run_biomni_on_subset.py` / `pipelines/run_robin_on_subset.py` —
+  one-off, resumable (append-only) runners that run Biomni / Robin-RAG
+  against `project_subset.csv` and write `data_subset/output_biomni_qwen3.csv`
+  / `data_subset/output_robin_gemma312b_cloud.csv`.
+- The remaining `data_subset/output_*.csv` files (`output_edison.csv`,
+  `output_phylo.csv`) are outputs collected from external tools on the same
+  fixed sample.
+
+All `output_*.csv` files are then scored with `pipelines/score_outputs.py`
+(see above) into the committed `results/*_scored/` directories, so every
+framework/tool can be compared on identical inputs.
+
 ### Notebook analysis
 
 Results are saved to `results/<run>/results.jsonl`. Load them in a notebook:
@@ -525,7 +551,7 @@ FRAMEWORK_REGISTRY["my_framework"] = MyRunner
 2. Register it in `src/bio_agents/tasks/__init__.py`:
 
 ```python
-from bio_agents.tasks.drug_discovery.assay import AssayGenerationTask
+from bio_agents.tasks.drug_discovery.assay_generation import AssayGenerationTask
 TASK_REGISTRY["assay_generation"] = AssayGenerationTask
 ```
 

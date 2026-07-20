@@ -46,3 +46,6 @@ robin_output/
 
 # Pyright type-checker cache
 .pyright/
+
+# Claude Code worktrees
+.claude/worktrees/
